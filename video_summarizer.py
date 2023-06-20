@@ -1,7 +1,6 @@
 import os
 import evadb
 from pytube import YouTube, extract
-from youtube_transcript_api import YouTubeTranscriptApi
 import pandas as pd
 import pickle as pkl
 import datetime
