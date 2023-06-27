@@ -5,7 +5,7 @@ import pandas as pd
 import pickle as pkl
 import datetime
 
-DEFAULT_VIDEO_LINK = "https://www.youtube.com/watch?v=TvS1lHEQoKk"
+DEFAULT_VIDEO_LINK = "https://www.youtube.com/watch?v=kvN5_GXlg2Y"
 MAX_CHUNK = 500
 
 
@@ -15,10 +15,11 @@ def download_video(link):
     Args:
         link (str): url of the target YouTube video.
     """
+    print("Downloading Video...")
     youtubeObject = YouTube(link)
     youtubeObject = youtubeObject.streams.filter(progressive=True)
     youtubeObject.first().download(filename="curr_video.mp4")
-
+    print("Video Downloaded Successfully!\n")
 
 def setup_udfs(cursor):
     """Initializes the UDFs
@@ -45,7 +46,8 @@ def setup_udfs(cursor):
     text_summarizer_udf_creation = """
         CREATE UDF TextSummarizer
         TYPE HuggingFace
-        'task' 'summarization';
+        'task' 'summarization'
+        'model' 'philschmid/bart-large-cnn-samsum';
         """
     cursor.query(text_summarizer_udf_creation).df()
 
@@ -84,10 +86,15 @@ def partition_transcription(df):
     text = df["speechrecognizer.text"].values[0].split(" ")
     text_len = len(text)
 
-    y = (text_len // MAX_CHUNK) * MAX_CHUNK
-    text_arr = [text[x : x + MAX_CHUNK] for x in range(0, y, MAX_CHUNK)]
+    text_arr = []
+    if text_len <= MAX_CHUNK:
+        text_arr.append(text)
 
-    text_arr[-1] += text[y:text_len]
+    else:
+        y = (text_len // MAX_CHUNK) * MAX_CHUNK
+        text_arr = [text[x : x + MAX_CHUNK] for x in range(0, y, MAX_CHUNK)]
+
+        text_arr[-1] += text[y:text_len]
 
     data = []
     for arr in text_arr:
@@ -127,7 +134,7 @@ def fetch_existing_summary(video_id):
         video_id (str): id of the youtube video
     """
 
-    file_path = os.path.join("/", "content", "evadb_data", "tmp")
+    file_path = os.path.join("evadb_data", "tmp")
 
     for summary_file in os.listdir(file_path):
         if summary_file.split("@")[0] == video_id:
@@ -184,7 +191,7 @@ def main():
             # Pickle data to a file
             filename = f"{video_id}@{datetime.datetime.now()}.pickle"
 
-            file_path = os.path.join("/", "content", "evadb_data", "tmp", filename)
+            file_path = os.path.join("evadb_data", "tmp", filename)
 
             with open(file_path, "wb") as file:
                 pkl.dump(data, file)
